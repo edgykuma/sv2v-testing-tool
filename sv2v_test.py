@@ -9,6 +9,12 @@ import Verilog_VCD as vcd
 # Global constants
 ##################
 VERSION = "1.0.0.2"
+# Path to example files, if option --example is passed in
+EX_DIR = "examples/"
+EX_FILE1 = EX_DIR + "ham.sv"
+EX_FILE2 = EX_DIR + "ham.v"
+EX_TB    = EX_DIR + "ham_tb.sv"
+EX_MOD   = "hamFix_test"
 # Time to wait (seconds) before simulation times out
 TIMEOUT = 10
 # Error codes
@@ -37,6 +43,8 @@ def parse_args():
             help="name of the (top) module to test for equivalence")
     parser.add_argument("--check", dest="in_file",
             help="check if IN_FILE can be processed without errors")
+    parser.add_argument("--example", action="store_true", dest="use_example",
+            help="run the script using the example files in 'examples'")
     ver_str = "%(prog)s " + VERSION
     parser.add_argument("--version", action="version", version=ver_str)
 
@@ -107,10 +115,17 @@ def equiv_check(path1, path2, tb_path, module):
 def main():
     # Grab args from the command line
     args = parse_args()
-    file1_path = args.file1
-    file2_path = args.file2
-    module = args.module
-    tb_path = args.testbench
+    use_example = args.use_example
+    if (use_example):
+        file1_path = EX_FILE1
+        file2_path = EX_FILE2
+        tb_path = EX_TB
+        module = EX_MOD
+    else:
+        file1_path = args.file1
+        file2_path = args.file2
+        tb_path = args.testbench
+        module = args.module
     # TODO: write functionality with sv2v tool
     checkfile_path = args.in_file
     if (checkfile_path != None):

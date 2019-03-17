@@ -32,7 +32,7 @@ Parse a VCD file and return a reference to a data structure which
 includes hierarchical signal definitions and time-value data for all
 the specified signals.  A file name is required.  By default, all
 signals in the VCD file are included, and times are in units
-specified by the C\<$timescale> VCD keyword.
+specified by the `$timescale` VCD keyword.
 
 ```python
 vcd = parse_vcd('/path/to/some.vcd')
@@ -184,7 +184,7 @@ et  = get_endtime();    # Then query the endtime
 
 ## Export
 Nothing is exported by default.  Functions may be exported individually, or
-all functions may be exported at once, using the special tag C<:all>.
+all functions may be exported at once, using the special tag `:all`.
 
 ## Diagnostics
 Error conditions cause the program to raise an Exception.

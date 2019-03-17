@@ -70,8 +70,26 @@ def run_timeout(command):
         raise SimTimeoutError("simulation timed out")
     return
 
-def basic_check():   #TODO
+#TODO
+def basic_check():
     return
+
+#TODO
+def generate_vcd(hdl_file, tb_file, vcd_name="dump.vcd"):
+    vcd_cmd =
+    return
+
+#TODO
+def compare_vcd(vcd1, vcd2, module):
+    # List of the signal hierarchy level that we care about
+    siglist = [module]
+    vcd_dict1 = vcd.parse_vcd(vcd1, siglist=siglist)
+    vcd_dict2 = vcd.parse_vcd(vcd2, siglist=siglist)
+    out_str = ""
+
+    is_equivalent = vcd_dict1 == vcd_dict2
+    # TODO: ability to print out which values are different, and when
+    return (is_equivalent, out_str)
 
 def equiv_check(path1, path2, tb_path, module):
     # Check to see if the files exist
@@ -97,15 +115,12 @@ def equiv_check(path1, path2, tb_path, module):
         base = os.path.basename(tb_path)
         module = os.path.splitext(base)[0]
 
-    # TODO: ability to print out which values are different, and when
     try:
         generate_vcd(path1, tb_path, vcd_name="out1.vcd")
         generate_vcd(path2, tb_path, vcd_name="out2.vcd")
         (is_equivalent, out_str) = compare_vcd("out1.vcd", "out2.vcd", module)
         return is_equivalent
-    except VCSCompileError:
-        raise
-    except SimTimeoutError:
+    except (SimTimeoutError, VCSCompileError, KeyboardInterrupt):
         raise
     finally:
         # Cleanup

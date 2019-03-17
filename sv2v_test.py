@@ -1,11 +1,30 @@
 #!/usr/bin/python
 import sys
+import os
 import argparse
 import subprocess
+import shutil
+import Verilog_VCD as vcd
 
 # Global constants
-VERSION = "0.1.1"
+##################
+VERSION = "1.0.0.2"
+# Time to wait (seconds) before simulation times out
 TIMEOUT = 10
+# Error codes
+NO_FILE_ERR = 1
+VCS_COMP_ERR = 2
+SIM_TIMEOUT_ER = 3
+
+# Exceptions for raising errors in script
+#########################################
+# TODO: define possible runtime errors
+class NoFileError(Exception):
+    pass
+class VCSCompileError(Exception):
+    pass
+class SimTimeoutError(Exception):
+    pass
 
 def parse_args():
     parser = argparse.ArgumentParser(description="testing tool for sv2v")
@@ -14,15 +33,16 @@ def parse_args():
     parser.add_argument("file2",
             help="path to the second Verilog file to compare")
     parser.add_argument("testbench", help="path to the testbench")
+    parser.add_argument("-m", "--module",
+            help="name of the (top) module to test for equivalence")
     parser.add_argument("--check", dest="in_file",
-            help="check if in_file can be processed without errors")
+            help="check if IN_FILE can be processed without errors")
     ver_str = "%(prog)s " + VERSION
     parser.add_argument("--version", action="version", version=ver_str)
 
     return parser.parse_args()
 
-def runTimeout(command):
-    outFile =  tempfile.SpooledTemporaryFile()
+def run_timeout(command):
     proc = subprocess.Popen(command, stdout=outFile, stderr=outFile,
             preexec_fn=os.setsid)
     # Time to wait until timeout, in seconds
@@ -38,17 +58,76 @@ def runTimeout(command):
         os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
         timedOut = True
 
-    # read temp streams from start
-    outFile.seek(0)
-    out = outFile.read()
-    outFile.close()
     if(timedOut):
-        out = "ERROR: simulation timed out\n\n" + out
-    return out
+        raise SimTimeoutError("simulation timed out")
+    return
+
+def basic_check():   #TODO
+    return
+
+def equiv_check(path1, path2, tb_path, module):
+    # Check to see if the files exist
+    if not (os.path.isfile(path1)):
+        raise NoFileError("no file found in {}".format(path1))
+    if not (os.path.isfile(path2)):
+        raise NoFileError("no file found in {}".format(path2))
+    if not (os.path.isfile(tb_path)):
+        raise NoFileError("no file found in {}".format(tb_path))
+    # Create a temp directory for our compilation/simulation
+    # Remove previous temp dir, just in case it still exists
+    tempdir = "__sv2v_temp"
+    shutil.rmtree(tempdir, ignore_errors=True)
+    os.mkdir(tempdir)
+    os.chdir(tempdir)
+    # Prepend "../" since we are in the tempdir, only if paths are not absolute
+    path1 = "../" + path1 if (path1[0] != '/') else path1
+    path2 = "../" + path2 if (path2[0] != '/') else path2
+    tb_path = "../" + tb_path if (tb_path[0] != '/') else tb_path
+
+    # Module name is name of tb file, unless otherwise specified
+    if (module == None):
+        base = os.path.basename(tb_path)
+        module = os.path.splitext(base)[0]
+
+    # TODO: ability to print out which values are different, and when
+    try:
+        generate_vcd(path1, tb_path, vcd_name="out1.vcd")
+        generate_vcd(path2, tb_path, vcd_name="out2.vcd")
+        (is_equivalent, out_str) = compare_vcd("out1.vcd", "out2.vcd", module)
+        return is_equivalent
+    except VCSCompileError:
+        raise
+    except SimTimeoutError:
+        raise
+    finally:
+        # Cleanup
+        os.chdir("..")
+        shutil.rmtree(tempdir)
 
 def main():
+    # Grab args from the command line
     args = parse_args()
+    file1_path = args.file1
+    file2_path = args.file2
+    module = args.module
+    tb_path = args.testbench
     # TODO: write functionality with sv2v tool
+    checkfile_path = args.in_file
+    if (checkfile_path != None):
+        basic_check()
+
+    try:
+        is_equiv = equiv_check(file1_path, file2_path, tb_path, module)
+    except NoFileError as e:
+        #TODO
+        return NO_FILE_ERR
+    except VCSCompileError as e:
+        #TODO
+        return VCS_COMP_ERR
+    except SimTimeoutError as e:
+        #TODO
+        return SIM_TIMEOUT_ERR
+
     return 0
 
 sys.exit(main())

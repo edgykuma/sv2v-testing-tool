@@ -1,6 +1,7 @@
 # Project-specific files #
 ##########################
 sim/*
+*.pyc
 
 # Compiled source #
 ###################

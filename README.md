@@ -17,6 +17,11 @@ Usage:
     testbench       path to the testbench to compare with
 ```
 
+It is worth noting that **this tool relies on your ability to write
+testbenches**. It merely checks the VCD (Value Change Dump) files and ensures
+all signals in the top level have the same values. This tool is only as
+exhaustive as your testbench allows it to be.
+
 ## Specification
 List is informal, and will need to be refined later on.
 - test if tool can parse file with no errors

@@ -1,6 +1,7 @@
 #!/usr/bin/python
 import sys
 import os
+import time
 import argparse
 import subprocess
 import shutil
@@ -76,8 +77,17 @@ def basic_check():
 
 #TODO
 def generate_vcd(hdl_file, tb_file, vcd_name="dump.vcd"):
-    vcd_cmd =
-    return
+    dump_opt = "+vcs+dumpvars+test.vcd"
+    vcd_cmd = ["vcs", "-sverilog", "-q", "+v2k", hdl_file, tb_file, dump_opt]
+    try:
+        subprocess.check_call(vcd_cmd)
+        subprocess.check_call(["./simv"])
+    except CalledProcessError as e:
+        exp_str = "compilation failed with code {}. ".format(e.returncode)
+        exp_str += "please check output for errors"
+        raise VCSCompileError(exp_str)
+    except SimTimeoutError:
+        raise
 
 #TODO
 def compare_vcd(vcd1, vcd2, module):
@@ -148,16 +158,22 @@ def main():
 
     try:
         is_equiv = equiv_check(file1_path, file2_path, tb_path, module)
+        if (is_equiv):
+            print("Descriptions are equivalent!")
+        else:
+            print("Descriptions are not equivalent.")
+        return 0
     except NoFileError as e:
         #TODO
+        print("NoFileError: " + e)
         return NO_FILE_ERR
     except VCSCompileError as e:
         #TODO
+        print("VCSCompileError: " + e)
         return VCS_COMP_ERR
     except SimTimeoutError as e:
         #TODO
+        print("SimTimeoutError: " + e)
         return SIM_TIMEOUT_ERR
-
-    return 0
 
 sys.exit(main())

@@ -4,12 +4,13 @@ import os
 import time
 import argparse
 import subprocess
+from subprocess import CalledProcessError
 import shutil
 import Verilog_VCD as vcd
 
 # Global constants
 ##################
-VERSION = "1.0.0.2"
+VERSION = "1.0.0.3"
 # Path to example files, if option --example is passed in
 EX_DIR = "examples/"
 EX_FILE1 = EX_DIR + "ham.sv"
@@ -52,7 +53,8 @@ def parse_args():
     return parser.parse_args()
 
 def run_timeout(command):
-    proc = subprocess.Popen(command, stdout=outFile, stderr=outFile,
+    devnull = open(os.devnull, 'w')
+    proc = subprocess.Popen(command, stdout=devnull, stderr=devnull,
             preexec_fn=os.setsid)
     # Time to wait until timeout, in seconds
     wait_remaining_sec = TIMEOUT;
@@ -68,28 +70,29 @@ def run_timeout(command):
         timedOut = True
 
     if(timedOut):
-        raise SimTimeoutError("simulation timed out")
+        devnull.close()
+        raise SimTimeoutError("SimTimeoutError: simulation timed out")
+    devnull.close()
     return
 
 #TODO
 def basic_check():
     return
 
-#TODO
 def generate_vcd(hdl_file, tb_file, vcd_name="dump.vcd"):
-    dump_opt = "+vcs+dumpvars+test.vcd"
+    dump_opt = "+vcs+dumpvars+" + vcd_name
     vcd_cmd = ["vcs", "-sverilog", "-q", "+v2k", hdl_file, tb_file, dump_opt]
     try:
-        subprocess.check_call(vcd_cmd)
-        subprocess.check_call(["./simv"])
+        subprocess.check_output(vcd_cmd)
+        run_timeout(["./simv"])
     except CalledProcessError as e:
-        exp_str = "compilation failed with code {}. ".format(e.returncode)
+        exp_str = e.output + "\nVCSCompileError: "
+        exp_str += "compilation failed with code {}. ".format(e.returncode)
         exp_str += "please check output for errors"
         raise VCSCompileError(exp_str)
     except SimTimeoutError:
         raise
 
-#TODO
 def compare_vcd(vcd1, vcd2, module):
     # List of the signal hierarchy level that we care about
     siglist = [module]
@@ -104,11 +107,11 @@ def compare_vcd(vcd1, vcd2, module):
 def equiv_check(path1, path2, tb_path, module):
     # Check to see if the files exist
     if not (os.path.isfile(path1)):
-        raise NoFileError("no file found in {}".format(path1))
+        raise NoFileError("NoFileError: no file found in {}".format(path1))
     if not (os.path.isfile(path2)):
-        raise NoFileError("no file found in {}".format(path2))
+        raise NoFileError("NoFileError: no file found in {}".format(path2))
     if not (os.path.isfile(tb_path)):
-        raise NoFileError("no file found in {}".format(tb_path))
+        raise NoFileError("NoFileError: no file found in {}".format(tb_path))
     # Create a temp directory for our compilation/simulation
     # Remove previous temp dir, just in case it still exists
     tempdir = "__sv2v_temp"
@@ -126,8 +129,10 @@ def equiv_check(path1, path2, tb_path, module):
         module = os.path.splitext(base)[0]
 
     try:
+        print("Generating VCD files...")
         generate_vcd(path1, tb_path, vcd_name="out1.vcd")
         generate_vcd(path2, tb_path, vcd_name="out2.vcd")
+        print("Comparing VCD files...")
         (is_equivalent, out_str) = compare_vcd("out1.vcd", "out2.vcd", module)
         return is_equivalent
     except (SimTimeoutError, VCSCompileError, KeyboardInterrupt):
@@ -159,21 +164,18 @@ def main():
     try:
         is_equiv = equiv_check(file1_path, file2_path, tb_path, module)
         if (is_equiv):
-            print("Descriptions are equivalent!")
+            print("\nDescriptions are equivalent!")
         else:
-            print("Descriptions are not equivalent.")
+            print("\nDescriptions are not equivalent.")
         return 0
     except NoFileError as e:
-        #TODO
-        print("NoFileError: " + e)
+        print(e)
         return NO_FILE_ERR
     except VCSCompileError as e:
-        #TODO
-        print("VCSCompileError: " + e)
+        print(e)
         return VCS_COMP_ERR
     except SimTimeoutError as e:
-        #TODO
-        print("SimTimeoutError: " + e)
+        print(e)
         return SIM_TIMEOUT_ERR
 
 sys.exit(main())

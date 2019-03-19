@@ -82,18 +82,14 @@ module hamFix_test;
     endfunction
 
     initial begin
-        //$vcdplusfile("ham_dump.vcd");
-        //$vcdpluson(1, hamFix_test);
-        //$dumpfile("ham_dump2.vcd");
-        //$dumpvars(1, hamFix_test);
         hasErrors = 0;
         @(posedge clock);
         for (i = 12'd0; i < 12'b1000_0000_0000; i++) begin
-            break;
             enc = hamEncode(i[11:1]);
             ham <= enc;
             @(posedge clock);
-            assert (fixed == hamDecode(enc)) else begin
+            // Delay of 1 to allow signals to settle
+            #1 assert (fixed == hamDecode(enc)) else begin
                 $error("Error: expected(%b) actual(%b) for input(%b)",
                     hamDecode(enc), fixed, enc);
                 hasErrors = 1;
@@ -103,7 +99,6 @@ module hamFix_test;
         @(posedge clock);
         if (!hasErrors)
             $display("All tests passed!");
-        //#10 $dumpall; $dumpflush;
         #10 $finish;
     end
 

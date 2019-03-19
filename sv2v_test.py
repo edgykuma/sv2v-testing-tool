@@ -13,7 +13,7 @@ import Verilog_VCD as vcd
 # Global constants
 ##################
 PROG = "sv2v_test.py"
-VERSION = "1.0.0.3"
+VERSION = "1.0.0"
 # Path to example files, if option --example is passed in
 EX_DIR = "examples/"
 EX_FILE1 = EX_DIR + "ham.sv"
@@ -123,11 +123,19 @@ def generate_vcd(hdl_file, tb_file, vcd_name="dump.vcd"):
     except SimTimeoutError:
         raise
 
+def filter_vcd(vcd_dict, top):
+    new_vcd = dict()
+    for key in vcd_dict:
+        tv = vcd_dict[key]["tv"]
+        for net in vcd_dict[key]["nets"]:
+            if (net["hier"] == top):    # If it is a signal we care about
+                sig_name = "{}.{}".format(net["hier"], net["name"])
+                new_vcd[sig_name] = tv
+    return new_vcd
+
 def compare_vcd(vcd1, vcd2, module):
-    # List of the signal hierarchy level that we care about
-    siglist = [module]
-    vcd_dict1 = vcd.parse_vcd(vcd1, siglist=siglist)
-    vcd_dict2 = vcd.parse_vcd(vcd2, siglist=siglist)
+    vcd_dict1 = filter_vcd(vcd.parse_vcd(vcd1), module)
+    vcd_dict2 = filter_vcd(vcd.parse_vcd(vcd2), module)
     out_str = ""
 
     is_equivalent = vcd_dict1 == vcd_dict2

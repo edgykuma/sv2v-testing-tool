@@ -47,10 +47,12 @@ class SimTimeoutError(Exception):
     pass
 
 def parse_args():
-    usage = "%(prog)s [-h] [-m MODULE] [--check IN_FILE] [--example] "
+    usage = "%(prog)s [-h] [-v] [-m MODULE] [--check IN_FILE] [--example] "
     usage += "[--version] file1 file2 testbench"
     parser = argparse.ArgumentParser(description="testing tool for sv2v",
             usage=usage, prog=PROG)
+    parser.add_argument("-v", "--verbose", action="store_true",
+            help="verbose output")
     parser.add_argument("file1", nargs="?",
             help="path to the first Verilog file to compare")
     parser.add_argument("file2", nargs="?",
@@ -133,12 +135,46 @@ def filter_vcd(vcd_dict, top):
                 new_vcd[sig_name] = tv
     return new_vcd
 
-def compare_vcd(vcd1, vcd2, module):
+def compare_vcd(vcd1, vcd2, module, file1, file2):
     vcd_dict1 = filter_vcd(vcd.parse_vcd(vcd1), module)
     vcd_dict2 = filter_vcd(vcd.parse_vcd(vcd2), module)
     out_str = ""
 
+    # Check if any signal isn't in both dicts
+    diff_keys = set(vcd_dict1.keys()) ^ set(vcd_dict2.keys())
+    for key in diff_keys:
+        msg = "Warning: "
+        if (key in vcd_dict1):      # not in dict2
+            msg += "{} is in {}, but not in {}".format(key, file1, file2)
+        else:                       # not in dict1
+            msg += "{} is in {}, but not in {}".format(key, file2, file1)
+        print(msg)
+    if (len(diff_keys)):
+        print("Netlists cannot be equivalent. Please check your testbench.")
+        return (False, out_str)
+
     is_equivalent = vcd_dict1 == vcd_dict2
+
+    # Feedback on what signals differ
+    if (not is_equivalent):
+        out_str += "Signal value changes not equivalent\n"
+        diff_list = []
+        # Keys in 1 should be same as keys in 2
+        for key in vcd_dict1.keys():
+            if (set(vcd_dict1[key]) != set(vcd_dict2[key])):
+                diff_list.append(key)
+        diff_list = sorted(diff_list)
+        out_str += "Inconsistent signals: {}\n\n".format(diff_list)
+        if (VERBOSE):
+            for key in diff_list:
+                out_str += "{}: (time, val) for {}\n".format(key, file1)
+                for tv in vcd_dict1[key]:
+                    out_str += "\t{}\n".format(tv)
+                out_str += "{}: (time, val) for {}\n".format(key, file2)
+                for tv in vcd_dict2[key]:
+                    out_str += "\t{}\n".format(tv)
+        else:
+            out_str += "Run tool with '-v' to see value change dumps\n"
     # TODO: ability to print out which values are different, and when
     return (is_equivalent, out_str)
 
@@ -172,9 +208,10 @@ def equiv_check(path1, path2, tb_path, module):
         generate_vcd(path2, tb_path, vcd_name="out2.vcd")
         print("Comparing VCD files...", end="")
         sys.stdout.flush()
-        (is_equivalent, out_str) = compare_vcd("out1.vcd", "out2.vcd", module)
+        (is_equivalent, out_str) = compare_vcd("out1.vcd", "out2.vcd", module,
+                os.path.basename(path1), os.path.basename(path2))
         print("done")
-        return is_equivalent
+        return (is_equivalent, out_str)
     except (SimTimeoutError, VCSCompileError, KeyboardInterrupt):
         raise
     finally:
@@ -189,6 +226,9 @@ def main():
     except NotEnoughArgError as e:
         print(e)
         return BAD_ARG_ERR
+
+    global VERBOSE
+    VERBOSE = args.verbose
     use_example = args.use_example
     if (use_example):
         file1_path = EX_FILE1
@@ -200,6 +240,7 @@ def main():
         file2_path = args.file2
         tb_path = args.testbench
         module = args.module
+
     # TODO: write functionality with sv2v tool
     checkfile_path = args.in_file
     if (checkfile_path != None):
@@ -213,11 +254,12 @@ def main():
             sys.exit(1)
 
     try:
-        is_equiv = equiv_check(file1_path, file2_path, tb_path, module)
+        (is_equiv, out_str) = equiv_check(file1_path, file2_path, tb_path,
+                module)
         if (is_equiv):
             print("\nDescriptions are equivalent!")
         else:
-            print("\nDescriptions are not equivalent.")
+            print(out_str)
         return 0
     except NoFileError as e:
         print(e)

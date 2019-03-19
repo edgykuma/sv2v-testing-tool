@@ -20,6 +20,7 @@ EX_FILE1 = EX_DIR + "ham.sv"
 EX_FILE2 = EX_DIR + "ham.v"
 EX_TB    = EX_DIR + "ham_tb.sv"
 EX_MOD   = "hamFix_test"
+EX_FILE1_BAD = EX_DIR + "ham_bad.sv"
 # Time to wait (seconds) before simulation times out
 TIMEOUT = 10
 # Error codes
@@ -47,8 +48,8 @@ class SimTimeoutError(Exception):
     pass
 
 def parse_args():
-    usage = "%(prog)s [-h] [-v] [-m MODULE] [--check IN_FILE] [--example] "
-    usage += "[--version] file1 file2 testbench"
+    usage = "%(prog)s [-h] [-v] [-m MODULE] [--check IN_FILE] [--ex-pass] "
+    usage += "[--ex-fail] [--version] file1 file2 testbench"
     parser = argparse.ArgumentParser(description="testing tool for sv2v",
             usage=usage, prog=PROG)
     parser.add_argument("-v", "--verbose", action="store_true",
@@ -62,15 +63,18 @@ def parse_args():
             help="name of the (top) module to test for equivalence")
     parser.add_argument("--check", dest="in_file",
             help="check if IN_FILE can be processed without errors")
-    parser.add_argument("--example", action="store_true", dest="use_example",
-            help="run the script using the example files in 'examples'")
+    parser.add_argument("--ex-pass", action="store_true", dest="use_good",
+            help="run the tool to pass using the example files in 'examples'")
+    parser.add_argument("--ex-fail", action="store_true", dest="use_bad",
+            help="run the tool to fail using the example files in 'examples'")
     ver_str = "%(prog)s " + VERSION
     parser.add_argument("--version", action="version", version=ver_str)
 
     args = parser.parse_args()
     # Checks to see if any positional arg is missing
     not_enough_args = None in [args.file1, args.file2, args.testbench]
-    if (not args.use_example and args.in_file == None and not_enough_args):
+    use_example = args.use_good or args.use_bad
+    if (not use_example and args.in_file == None and not_enough_args):
         parser.print_usage(sys.stderr)
         raise NotEnoughArgError("{}: error: too few arguments".format(PROG))
     return args
@@ -246,9 +250,8 @@ def main():
 
     global VERBOSE
     VERBOSE = args.verbose
-    use_example = args.use_example
-    if (use_example):
-        file1_path = EX_FILE1
+    if (args.use_good or args.use_bad):
+        file1_path = EX_FILE1 if args.use_good else EX_FILE1_BAD
         file2_path = EX_FILE2
         tb_path = EX_TB
         module = EX_MOD

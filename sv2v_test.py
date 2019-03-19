@@ -10,6 +10,7 @@ import Verilog_VCD as vcd
 
 # Global constants
 ##################
+PROG = "sv2v_test.py"
 VERSION = "1.0.0.3"
 # Path to example files, if option --example is passed in
 EX_DIR = "examples/"
@@ -22,11 +23,14 @@ TIMEOUT = 10
 # Error codes
 NO_FILE_ERR = 1
 VCS_COMP_ERR = 2
-SIM_TIMEOUT_ER = 3
+SIM_TIMEOUT_ERR = 3
+BAD_ARG_ERR = 4
 
 # Exceptions for raising errors in script
 #########################################
 # TODO: define possible runtime errors
+class NotEnoughArgError(Exception):
+    pass
 class NoFileError(Exception):
     pass
 class VCSCompileError(Exception):
@@ -35,12 +39,15 @@ class SimTimeoutError(Exception):
     pass
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="testing tool for sv2v")
-    parser.add_argument("file1",
+    usage = "%(prog)s [-h] [-m MODULE] [--check IN_FILE] [--example] "
+    usage += "[--version] file1 file2 testbench"
+    parser = argparse.ArgumentParser(description="testing tool for sv2v",
+            usage=usage, prog=PROG)
+    parser.add_argument("file1", nargs="?",
             help="path to the first Verilog file to compare")
-    parser.add_argument("file2",
+    parser.add_argument("file2", nargs="?",
             help="path to the second Verilog file to compare")
-    parser.add_argument("testbench", help="path to the testbench")
+    parser.add_argument("testbench", nargs="?", help="path to the testbench")
     parser.add_argument("-m", "--module",
             help="name of the (top) module to test for equivalence")
     parser.add_argument("--check", dest="in_file",
@@ -50,7 +57,13 @@ def parse_args():
     ver_str = "%(prog)s " + VERSION
     parser.add_argument("--version", action="version", version=ver_str)
 
-    return parser.parse_args()
+    args = parser.parse_args()
+    # Checks to see if any positional arg is missing
+    not_enough_args = None in [args.file1, args.file2, args.testbench]
+    if (not args.use_example and not_enough_args):
+        parser.print_usage(sys.stderr)
+        raise NotEnoughArgError("\n{}: error: too few arguments".format(PROG))
+    return args
 
 def run_timeout(command):
     devnull = open(os.devnull, 'w')
@@ -144,7 +157,11 @@ def equiv_check(path1, path2, tb_path, module):
 
 def main():
     # Grab args from the command line
-    args = parse_args()
+    try:
+        args = parse_args()
+    except NotEnoughArgError as e:
+        print(e)
+        return BAD_ARG_ERR
     use_example = args.use_example
     if (use_example):
         file1_path = EX_FILE1

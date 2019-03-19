@@ -1,4 +1,6 @@
 #!/usr/bin/python
+from __future__ import print_function
+
 import sys
 import os
 import time
@@ -100,11 +102,19 @@ def basic_check():
     return
 
 def generate_vcd(hdl_file, tb_file, vcd_name="dump.vcd"):
+    hdl_base = os.path.basename(hdl_file)
+    tb_base = os.path.basename(tb_file)
     dump_opt = "+vcs+dumpvars+" + vcd_name
     vcd_cmd = ["vcs", "-sverilog", "-q", "+v2k", hdl_file, tb_file, dump_opt]
     try:
+        print("\tCompiling {}...".format(hdl_base), end="")
+        sys.stdout.flush()
         subprocess.check_output(vcd_cmd)
+        print("done")
+        print("\tRunning sim for {}...".format(tb_base), end="")
+        sys.stdout.flush()
         run_timeout(["./simv"])
+        print("done")
     except CalledProcessError as e:
         exp_str = e.output + "\nVCSCompileError: "
         exp_str += "compilation failed with code {}. ".format(e.returncode)
@@ -149,11 +159,13 @@ def equiv_check(path1, path2, tb_path, module):
         module = os.path.splitext(base)[0]
 
     try:
-        print("Generating VCD files...")
+        print("Generating VCD files:")
         generate_vcd(path1, tb_path, vcd_name="out1.vcd")
         generate_vcd(path2, tb_path, vcd_name="out2.vcd")
-        print("Comparing VCD files...")
+        print("Comparing VCD files...", end="")
+        sys.stdout.flush()
         (is_equivalent, out_str) = compare_vcd("out1.vcd", "out2.vcd", module)
+        print("done")
         return is_equivalent
     except (SimTimeoutError, VCSCompileError, KeyboardInterrupt):
         raise
@@ -189,6 +201,8 @@ def main():
         except BasicCheckError as e:
             print(e)
             return FAIL_BASIC
+        except KeyboardInterrupt:
+            sys.exit(1)
 
     try:
         is_equiv = equiv_check(file1_path, file2_path, tb_path, module)
@@ -206,5 +220,7 @@ def main():
     except SimTimeoutError as e:
         print(e)
         return SIM_TIMEOUT_ERR
+    except KeyboardInterrupt:
+        sys.exit(1)
 
 sys.exit(main())

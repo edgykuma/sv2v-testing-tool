@@ -61,21 +61,17 @@ module hamFix_test;
         input logic [15:1] ham
     );
         logic [15:1] fixed;
-        logic p1, p2, p3, p4;
-        logic [3:0] parity = {p4, p3, p2, p1};
-
-        p1 = ham[1] ^ ham[3] ^ ham[5] ^ ham[7] ^ ham[9] ^ ham[11] ^
-             ham[13] ^ ham[15];
-        p2 = ham[2] ^ ham[3] ^ ham[6] ^ ham[7] ^ ham[10] ^ ham[11] ^
-             ham[14] ^ ham[15];
-        p3 = ham[4] ^ ham[5] ^ ham[6] ^ ham[7] ^ ham[12] ^ ham[13] ^
-             ham[14] ^ ham[15];
-        p4 = ham[8] ^ ham[9] ^ ham[10] ^ ham[11] ^ ham[12] ^ ham[13] ^
-             ham[14] ^ ham[15];
+        logic [3:0] syndrome;
+        logic p1, p2, p4, p8;
+        p1 = ham[1];
+        p2 = ham[2];
+        p4 = ham[4];
+        p8 = ham[8];
+        syndrome = {p8, p4, p2, p1};
 
         fixed = ham;
-        if (parity != 4'b0000)
-            fixed[parity] = ~ham[parity];
+        if (syndrome != 4'b0000)
+            fixed[syndrome] = ~ham[syndrome];
 
         return fixed;
 

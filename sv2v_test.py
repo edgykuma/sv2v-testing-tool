@@ -21,7 +21,11 @@ EX_MOD   = "hamFix_test"
 # Time to wait (seconds) before simulation times out
 TIMEOUT = 10
 # Error codes
+# argparse errors
 BAD_ARG_ERR = 1
+# basic test errors
+FAIL_BASIC = 20
+# script runtime errors
 NO_FILE_ERR = 10
 VCS_COMP_ERR = 11
 SIM_TIMEOUT_ERR = 12
@@ -30,6 +34,8 @@ SIM_TIMEOUT_ERR = 12
 #########################################
 # TODO: define possible runtime errors
 class NotEnoughArgError(Exception):
+    pass
+class BasicCheckError(Exception):
     pass
 class NoFileError(Exception):
     pass
@@ -60,9 +66,9 @@ def parse_args():
     args = parser.parse_args()
     # Checks to see if any positional arg is missing
     not_enough_args = None in [args.file1, args.file2, args.testbench]
-    if (not args.use_example and not_enough_args):
+    if (not args.use_example and args.in_file == None and not_enough_args):
         parser.print_usage(sys.stderr)
-        raise NotEnoughArgError("\n{}: error: too few arguments".format(PROG))
+        raise NotEnoughArgError("{}: error: too few arguments".format(PROG))
     return args
 
 def run_timeout(command):
@@ -90,6 +96,7 @@ def run_timeout(command):
 
 #TODO
 def basic_check():
+    print("basic check not currently supported :(")
     return
 
 def generate_vcd(hdl_file, tb_file, vcd_name="dump.vcd"):
@@ -176,7 +183,12 @@ def main():
     # TODO: write functionality with sv2v tool
     checkfile_path = args.in_file
     if (checkfile_path != None):
-        basic_check()
+        try:
+            basic_check()
+            return 0
+        except BasicCheckError as e:
+            print(e)
+            return FAIL_BASIC
 
     try:
         is_equiv = equiv_check(file1_path, file2_path, tb_path, module)

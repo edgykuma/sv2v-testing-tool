@@ -25,7 +25,7 @@ module hamFix(
 
     always_comb begin
         fixedAsync = ham;
-        if (syndrome != 4'b0000)                  // Errors to fix
+        if (syndrome != 4'b0000)                    // Errors to fix
             fixedAsync[syndrome] = ~ham[syndrome];  // Flip bit
     end
 

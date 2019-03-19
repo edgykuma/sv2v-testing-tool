@@ -1,4 +1,4 @@
-# sv2v Testing Suite
+# sv2v Testing Tool
 Tests used to verify `.sv` and their equivalent `.v` files.
 Intended for Python 2.7.
 

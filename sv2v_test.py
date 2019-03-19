@@ -21,10 +21,10 @@ EX_MOD   = "hamFix_test"
 # Time to wait (seconds) before simulation times out
 TIMEOUT = 10
 # Error codes
-NO_FILE_ERR = 1
-VCS_COMP_ERR = 2
-SIM_TIMEOUT_ERR = 3
-BAD_ARG_ERR = 4
+BAD_ARG_ERR = 1
+NO_FILE_ERR = 10
+VCS_COMP_ERR = 11
+SIM_TIMEOUT_ERR = 12
 
 # Exceptions for raising errors in script
 #########################################

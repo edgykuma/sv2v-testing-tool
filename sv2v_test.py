@@ -136,6 +136,11 @@ def filter_vcd(vcd_dict, top):
     return new_vcd
 
 def compare_vcd(vcd1, vcd2, module, file1, file2):
+    # Get size of terminal for pretty printing
+    (trow, tcol) = subprocess.check_output(["stty", "size"]).split()
+    tcol = int(tcol)
+    trow = int(trow)
+    cwidth = (tcol - 4) // 2    # -4 for column separator
     vcd_dict1 = filter_vcd(vcd.parse_vcd(vcd1), module)
     vcd_dict2 = filter_vcd(vcd.parse_vcd(vcd2), module)
     out_str = ""
@@ -167,12 +172,24 @@ def compare_vcd(vcd1, vcd2, module, file1, file2):
         out_str += "Inconsistent signals: {}\n\n".format(diff_list)
         if (VERBOSE):
             for key in diff_list:
-                out_str += "{}: (time, val) for {}\n".format(key, file1)
-                for tv in vcd_dict1[key]:
-                    out_str += "\t{}\n".format(tv)
-                out_str += "{}: (time, val) for {}\n".format(key, file2)
-                for tv in vcd_dict2[key]:
-                    out_str += "\t{}\n".format(tv)
+                out_str += "{}:\n".format(key)
+                out_str += "%s || %s\n" % (file1.rjust(cwidth),
+                        file2.ljust(cwidth))
+                len1 = len(vcd_dict1[key])
+                len2 = len(vcd_dict2[key])
+                for i in range(max(len1, len2)):
+                    if (i < len1):
+                        tv1 = "{}".format(vcd_dict1[key][i])
+                    else:
+                        tv1 = ""
+                    if (i < len2):
+                        tv2 = "{}".format(vcd_dict2[key][i])
+                    else:
+                        tv2 = ""
+                    out_str += "%s || %s\n" % (tv1.rjust(cwidth),
+                            tv2.ljust(cwidth))
+            out_str += "Verbose output may be very long. Recommend outputting "
+            out_str += "to a file.\n"
         else:
             out_str += "Run tool with '-v' to see value change dumps\n"
     # TODO: ability to print out which values are different, and when

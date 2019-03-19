@@ -1,7 +1,7 @@
 # Verilog\_VCD - Parse a Verilog VCD text file
 This document refers to Verilog::VCD version 1.10.
 
-Credit goes to: https://pypi.org/project/Verilog\_VCD
+Credit goes to: https://github.com/zylin/Verilog_VCD
 
 ## Usage
 ```python

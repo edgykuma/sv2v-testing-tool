@@ -1,6 +1,24 @@
 # sv2v Testing Tool
 Tests used to verify `.sv` and their equivalent `.v` files.
-Intended for Python 2.7.
+Intended for Python 2.7+.
+
+## Todos
+- finish Usage section of README
+- ~~write main testing functionality~~
+- ~~make diff feedback readable(ish)~~
+- make compatible with main `sv2v` tool (to check for basic tests)
+- higher-level comments on script functions
+- allow for passing args into simulation (and VCS while we're at it)
+- change flags to VCS to automatically detect need for `-sverilog` flag
+- run tests on other code
+
+## Dependencies
+The script is run using Python, ver. 2.7+. The only other dependencies for the
+script to work are:
+- Synopsys's VCS tool, script ver. K-2015.09 and above
+- the `diff` program, used in any major Unix system
+Please ensure that these dependencies are installed and added to your `PATH`
+before using the tool.
 
 ## Usage
 ### TODO: formalize this

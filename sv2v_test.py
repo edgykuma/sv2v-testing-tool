@@ -49,6 +49,33 @@ class VCSCompileError(Exception):
 class SimTimeoutError(Exception):
     pass
 
+# Function for raising error exceptions
+#######################################
+def raise_err(err_code, err_params=[]):
+    if (err_code == BAD_ARG_ERR):
+        if (len(err_params)):
+            msg = "{}: error: too few arguments".format(err_params[0])
+        else:
+            msg = "error: too few arguments"
+        raise NotEnoughArgError(msg)
+    elif (err_code == SIM_TIMEOUT_ERR):
+        raise SimTimeoutError("SimTimeoutError: simulation timed out")
+    elif (err_code == VCS_COMP_ERR):
+        msg = ""
+        if (len(err_params) > 0):
+            msg += "{}\n".format(err_params[0])
+        msg += "VCSCompileError: compilation failed"
+        if (len(err_params) > 1):
+            msg += " with code {}".format(err_params[1])
+        if (len(err_params) > 0):
+            msg += ". Please check output for errors"
+        raise VCSCompileError(msg)
+    elif (err_code == NO_FILE_ERR):
+        msg = "NoFileError: no file found"
+        if (len(err_params)):
+            msg += " in {}".format(err_params[0])
+        raise NoFileError(msg)
+
 def parse_args():
     """Parses the command line for arguments via argparse.
     """
@@ -80,7 +107,7 @@ def parse_args():
     use_example = args.use_good or args.use_bad
     if (not use_example and args.in_file == None and not_enough_args):
         parser.print_usage(sys.stderr)
-        raise NotEnoughArgError("{}: error: too few arguments".format(PROG))
+        raise_err(BAD_ARG_ERR, (PROG,))
     return args
 
 def run_timeout(command):
@@ -102,7 +129,7 @@ def run_timeout(command):
 
     if(timedOut):
         devnull.close()
-        raise SimTimeoutError("SimTimeoutError: simulation timed out")
+        raise_err(SIM_TIMEOUT_ERR)
     devnull.close()
     return
 
@@ -129,7 +156,7 @@ def generate_vcd(hdl_file, tb_file, vcd_name="dump.vcd"):
         exp_str = e.output + "\nVCSCompileError: "
         exp_str += "compilation failed with code {}. ".format(e.returncode)
         exp_str += "please check output for errors"
-        raise VCSCompileError(exp_str)
+        raise_err(VCS_COMP_ERR, (e.output, e.returncode))
     except SimTimeoutError:
         raise
 
@@ -222,11 +249,11 @@ def compare_vcd(vcd1, vcd2, module, file1, file2):
 def equiv_check(path1, path2, tb_path, module):
     # Check to see if the files exist
     if not (os.path.isfile(path1)):
-        raise NoFileError("NoFileError: no file found in {}".format(path1))
+        raise_err(NO_FILE_ERR, (path1,))
     if not (os.path.isfile(path2)):
-        raise NoFileError("NoFileError: no file found in {}".format(path2))
+        raise_err(NO_FILE_ERR, (path2,))
     if not (os.path.isfile(tb_path)):
-        raise NoFileError("NoFileError: no file found in {}".format(tb_path))
+        raise_err(NO_FILE_ERR, (tb_path,))
     # Create a temp directory for our compilation/simulation
     tempdir = tempfile.mkdtemp()
     ori_dir = os.getcwd()

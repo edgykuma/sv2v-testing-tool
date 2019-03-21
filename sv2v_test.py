@@ -50,8 +50,10 @@ class SimTimeoutError(Exception):
     pass
 
 def parse_args():
-    usage = "%(prog)s [-h] [-v] [-m MODULE] [--check IN_FILE] [--ex-pass] "
-    usage += "[--ex-fail] [--version] file1 file2 testbench"
+    """Parses the command line for arguments via argparse.
+    """
+    usage = "%(prog)s [-h] [-v] [-m MODULE] [--check IN_FILE] "
+    usage += "file1 file2 testbench"
     parser = argparse.ArgumentParser(description="testing tool for sv2v",
             usage=usage, prog=PROG)
     parser.add_argument("-v", "--verbose", action="store_true",
@@ -226,15 +228,13 @@ def equiv_check(path1, path2, tb_path, module):
     if not (os.path.isfile(tb_path)):
         raise NoFileError("NoFileError: no file found in {}".format(tb_path))
     # Create a temp directory for our compilation/simulation
-    # Remove previous temp dir, just in case it still exists
-    tempdir = "__sv2v_temp"
-    shutil.rmtree(tempdir, ignore_errors=True)
-    os.mkdir(tempdir)
+    tempdir = tempfile.mkdtemp()
+    ori_dir = os.getcwd()
     os.chdir(tempdir)
-    # Prepend "../" since we are in the tempdir, only if paths are not absolute
-    path1 = "../" + path1 if (path1[0] != '/') else path1
-    path2 = "../" + path2 if (path2[0] != '/') else path2
-    tb_path = "../" + tb_path if (tb_path[0] != '/') else tb_path
+    # Prepend path since we are in the tempdir, only if paths are not absolute
+    path1 = ori_dir + "/" + path1 if (path1[0] != '/') else path1
+    path2 = ori_dir + "/" + path2 if (path2[0] != '/') else path2
+    tb_path = ori_dir + "/" + tb_path if (tb_path[0] != '/') else tb_path
 
     # Module name is name of tb file, unless otherwise specified
     if (module == None):
@@ -255,7 +255,7 @@ def equiv_check(path1, path2, tb_path, module):
         raise
     finally:
         # Cleanup
-        os.chdir("..")
+        os.chdir(ori_dir)
         shutil.rmtree(tempdir)
 
 def main():
@@ -289,6 +289,7 @@ def main():
             print(e)
             return FAIL_BASIC
         except KeyboardInterrupt:
+            # Suppress traceback
             sys.exit(1)
 
     try:

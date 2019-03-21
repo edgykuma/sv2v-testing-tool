@@ -110,9 +110,13 @@ def parse_args():
         raise_err(BAD_ARG_ERR, (PROG,))
     return args
 
-def run_timeout(command):
+def run_timeout(command, suppress=True):
     devnull = open(os.devnull, 'w')
-    proc = subprocess.Popen(command, stdout=devnull, stderr=devnull,
+    if (suppress):
+        dest = devnull
+    else:
+        dest = None
+    proc = subprocess.Popen(command, stdout=dest, stderr=dest,
             preexec_fn=os.setsid)
     # Time to wait until timeout, in seconds
     wait_remaining_sec = TIMEOUT;

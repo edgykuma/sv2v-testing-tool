@@ -78,6 +78,13 @@ def raise_err(err_code, err_params=[]):
 
 def parse_args():
     """Parses the command line for arguments via argparse.
+    Will error out if arguments are insufficient.
+
+    Args:
+        None
+
+    Returns:
+        None
     """
     usage = "%(prog)s [-h] [-v] [-m MODULE] [--check IN_FILE] "
     usage += "file1 file2 testbench"
@@ -90,6 +97,7 @@ def parse_args():
     parser.add_argument("file2", nargs="?",
             help="path to the second Verilog file to compare")
     parser.add_argument("testbench", nargs="?", help="path to the testbench")
+    parser.add_argument("--vcd", nargs=2, help="paths to two VCD files for comparison")
     parser.add_argument("-m", "--module",
             help="name of the (top) module to test for equivalence")
     parser.add_argument("--check", dest="in_file",
@@ -102,8 +110,9 @@ def parse_args():
     parser.add_argument("--version", action="version", version=ver_str)
 
     args = parser.parse_args()
-    # Checks to see if any positional arg is missing
-    not_enough_args = None in [args.file1, args.file2, args.testbench]
+    # Checks to see if any positional arg is missing and not just comparing VCD
+    not_enough_args = (args.vcd == None) and \
+                      (None in [args.file1, args.file2, args.testbench])
     use_example = args.use_good or args.use_bad
     if (not use_example and args.in_file == None and not_enough_args):
         parser.print_usage(sys.stderr)
@@ -111,6 +120,14 @@ def parse_args():
     return args
 
 def run_timeout(command, suppress=True):
+    """Run a command with timeout. Suppresses command output by default.
+
+    Args:
+        command (str | [str]): command to be passed into subprocess.Popen()
+
+    Returns:
+        None
+    """
     devnull = open(os.devnull, 'w')
     if (suppress):
         dest = devnull
@@ -137,6 +154,12 @@ def run_timeout(command, suppress=True):
     devnull.close()
     return
 
+def path_make_absolute(file_path, ori_path):
+    if (len(file_path) == 0):
+        print("ERROR: file path is empty")
+        sys.exit(1)
+    return "{}/{}".format(ori_path, file_path) if (file_path[0] != '/') else file_path
+
 #TODO
 def basic_check():
     print("basic check not currently supported :(")
@@ -162,6 +185,22 @@ def generate_vcd(hdl_file, tb_file, vcd_name="dump.vcd"):
         exp_str += "please check output for errors"
         raise_err(VCS_COMP_ERR, (e.output, e.returncode))
     except SimTimeoutError:
+        raise
+
+def generate_vcds(path1, path2, tb_path):
+    # Check to see if the files exist
+    if not (os.path.isfile(path1)):
+        raise_err(NO_FILE_ERR, (path1,))
+    if not (os.path.isfile(path2)):
+        raise_err(NO_FILE_ERR, (path2,))
+    if not (os.path.isfile(tb_path)):
+        raise_err(NO_FILE_ERR, (tb_path,))
+
+    try:
+        print("Generating VCD files:")
+        generate_vcd(path1, tb_path, vcd_name="out1.vcd")
+        generate_vcd(path2, tb_path, vcd_name="out2.vcd")
+    except (SimTimeoutError, VCSCompileError, KeyboardInterrupt):
         raise
 
 def filter_vcd(vcd_dict, top):
@@ -250,44 +289,20 @@ def compare_vcd(vcd1, vcd2, module, file1, file2):
             out_str += "Run tool with '-v' to see value change dumps\n"
     return (is_equivalent, out_str)
 
-def equiv_check(path1, path2, tb_path, module):
-    # Check to see if the files exist
-    if not (os.path.isfile(path1)):
-        raise_err(NO_FILE_ERR, (path1,))
-    if not (os.path.isfile(path2)):
-        raise_err(NO_FILE_ERR, (path2,))
-    if not (os.path.isfile(tb_path)):
-        raise_err(NO_FILE_ERR, (tb_path,))
-    # Create a temp directory for our compilation/simulation
-    tempdir = tempfile.mkdtemp()
-    ori_dir = os.getcwd()
-    os.chdir(tempdir)
-    # Prepend path since we are in the tempdir, only if paths are not absolute
-    path1 = ori_dir + "/" + path1 if (path1[0] != '/') else path1
-    path2 = ori_dir + "/" + path2 if (path2[0] != '/') else path2
-    tb_path = ori_dir + "/" + tb_path if (tb_path[0] != '/') else tb_path
-
-    # Module name is name of tb file, unless otherwise specified
-    if (module == None):
-        base = os.path.basename(tb_path)
-        module = os.path.splitext(base)[0]
-
-    try:
-        print("Generating VCD files:")
-        generate_vcd(path1, tb_path, vcd_name="out1.vcd")
-        generate_vcd(path2, tb_path, vcd_name="out2.vcd")
-        print("Comparing VCD files...", end="")
-        sys.stdout.flush()
-        (is_equivalent, out_str) = compare_vcd("out1.vcd", "out2.vcd", module,
-                os.path.basename(path1), os.path.basename(path2))
-        print("done")
-        return (is_equivalent, out_str)
-    except (SimTimeoutError, VCSCompileError, KeyboardInterrupt):
-        raise
-    finally:
-        # Cleanup
-        os.chdir(ori_dir)
-        shutil.rmtree(tempdir)
+def equiv_check(vcd1, vcd2, module, hdl1, hdl2):
+    print("Comparing VCD files...", end="")
+    sys.stdout.flush()
+    if (hdl1 != None):
+        file1 = os.path.basename(hdl1)
+    else:
+        file1 = vcd1
+    if (hdl2 != None):
+        file2 = os.path.basename(hdl2)
+    else:
+        file2 = vcd2
+    (is_equivalent, out_str) = compare_vcd(vcd1, vcd2, module, file1, file2)
+    print("done")
+    return (is_equivalent, out_str)
 
 def main():
     # Grab args from the command line
@@ -299,6 +314,8 @@ def main():
 
     global VERBOSE
     VERBOSE = args.verbose
+    no_compile = (args.vcd != None)
+    vcd_files = args.vcd
     if (args.use_good or args.use_bad):
         file1_path = EX_FILE1 if args.use_good else EX_FILE1_BAD
         file2_path = EX_FILE2
@@ -323,9 +340,34 @@ def main():
             # Suppress traceback
             sys.exit(1)
 
+    # Create a temp directory for our compilation/simulation
+    tempdir = tempfile.mkdtemp()
+    ori_dir = os.getcwd()
+    os.chdir(tempdir)
     try:
-        (is_equiv, out_str) = equiv_check(file1_path, file2_path, tb_path,
-                module)
+        if (no_compile):
+            # Prepend path since we are in the tempdir, only if paths are not absolute
+            vcd1 = path_make_absolute(vcd_files[0], ori_dir)
+            vcd2 = path_make_absolute(vcd_files[1], ori_dir)
+            path1 = None
+            path2 = None
+            if (module == None):
+                print("No top module specified. Defaulting to 'top'.")
+                module = "top"
+        else:
+            path1 = path_make_absolute(file1_path, ori_dir)
+            path2 = path_make_absolute(file2_path, ori_dir)
+            tb_path = path_make_absolute(tb_path, ori_dir)
+            generate_vcds(path1, path2, tb_path)
+            vcd1 = "out1.vcd"
+            vcd2 = "out2.vcd"
+            # Module name is name of tb file, unless otherwise specified
+            if (module == None):
+                base = os.path.basename(tb_path)
+                module = os.path.splitext(base)[0]
+                print("No top module specified. Defaulting to '{}'".format(module))
+
+        (is_equiv, out_str) = equiv_check(vcd1, vcd2, module, path1, path2)
         if (is_equiv):
             print("\nDescriptions are equivalent!")
         else:
@@ -342,8 +384,13 @@ def main():
         return SIM_TIMEOUT_ERR
     except KeyboardInterrupt:
         sys.exit(1)
-    except:
-        print("an unknown error has occurred")
+    except Exception as e:
+        print("an unknown error has occurred:")
+        print(e)
         return UNKNOWN_ERR
+    finally:
+        # Cleanup
+        os.chdir(ori_dir)
+        shutil.rmtree(tempdir)
 
 sys.exit(main())

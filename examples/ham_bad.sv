@@ -1,8 +1,6 @@
 /* ham_bad.sv
- * Nearly the same as bad.sv, save for a small stuck-at-1 error. Primary use is
+ * Nearly the same as ham.sv, save for a small stuck-at-1 error. Primary use is
  * for running the tool on code that should be different.
- *
- * This code is property of Carnegie Mellon University's 18341 course.
  *
  * Author: Edric Kusuma
  *****************************************************************************/

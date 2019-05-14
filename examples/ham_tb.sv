@@ -4,8 +4,6 @@
  * in SystemVerilog, it will have to be compiled as such (i.e. using the
  * `-sverilog` flag in VCS).
  *
- * This code is property of Carnegie Mellon University's 18341 course.
- *
  * Author: Edric Kusuma
  *****************************************************************************/
 `default_nettype none

@@ -1,9 +1,6 @@
 /* ham.sv
- * A quick and dirty Hamming encoding bit vector corrector module. Used as a
- * part of an 18341 homework, which we will use as an example input to the sv2v
- * testing suite.
- *
- * This code is property of Carnegie Mellon University's 18341 course.
+ * A quick and dirty Hamming encoding bit vector corrector module. We will use
+ * this as an example input to the sv2v testing tool.
  *
  * Author: Edric Kusuma
  *****************************************************************************/
